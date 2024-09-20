@@ -305,9 +305,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load Models
 vgg_model = models.vgg16(pretrained=False)
 vgg_model.classifier = nn.Sequential(*list(vgg_model.classifier.children())[:-3])
-vgg_model.load_state_dict(torch.load('vgg16_feature_extractor.pth', map_location=torch.device('cpu')))
-#state_dict = torch.load('GEMASTIK_FINAL_VGG16.pth')
-#vgg_model.load_state_dict(state_dict, strict=False)
+#vgg_model.load_state_dict(torch.load('vgg16_feature_extractor.pth', map_location=torch.device('cpu')))    #PATH LAMA
+state_dict = torch.load('GEMASTIK_FINAL_VGG16.pth')        #PATH BARU
+vgg_model.load_state_dict(state_dict, strict=False)
 vgg_model.to(device) #move model to the device (GPU or CPU)
 vgg_model.eval()
 
@@ -394,12 +394,6 @@ def classification():
                         - **Asal: Mutasi sel kelenjar pituitari**
                         """
                     )
-
-# data = {
-#         'Jenis Tumor': ['Glioma', 'Meningioma', 'Pituitari', 'Lainnya'],
-#         'Jumlah Kasus': [40000, 30000, 10000, 5000]
-#     }
-# df = pd.DataFrame(data)
 
 def set_png_as_page_bg(png_file):
     page_bg_img = '''
