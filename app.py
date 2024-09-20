@@ -378,7 +378,6 @@ def classification():
                         """
                         ***MENINGIOMA***
                         - **Asal: Meninges yang menutupi otak dan sumsum tulang belakang**
-                        - **Sifat: Jinak**
                         """
                     )
                 elif predicted_class == 'nontumor':
