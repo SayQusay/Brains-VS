@@ -305,8 +305,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load Models
 vgg_model = models.vgg16(pretrained=False)
 vgg_model.classifier = nn.Sequential(*list(vgg_model.classifier.children())[:-3])
-#vgg_model.load_state_dict(torch.load('vgg16_feature_extractor.pth', map_location=torch.device('cpu')))    #PATH LAMA
-state_dict = torch.load('GEMASTIK_FINAL_VGG16.pth', map_location=torch.device('cpu'))
+# Deteksi apakah ada GPU
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Muat model di device yang sesuai
+state_dict = torch.load('GEMASTIK_FINAL_VGG16.pth', map_location=device)
 vgg_model.load_state_dict(state_dict, strict=False)
 vgg_model.to(device) #move model to the device (GPU or CPU)
 vgg_model.eval()
