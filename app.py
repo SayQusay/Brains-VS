@@ -301,21 +301,49 @@ def apply_gaussian(input3, sigma=0.8, filter_shape=(5,5)):
         gaussian_img = cv2.GaussianBlur(image_cv, filter_shape, sigma)
     return Image.fromarray(gaussian_img)
 
+# Devide the VGG16 feature extractor
+class VGG16FeatureExtractor(nn.Module):
+    def __init__(self, original_model):
+        super(VGG16FeatureExtractor, self).__init__()
+        self.features = original_model.features
+        self.avgpool = original_model.avgpool
+        self.fc1 = original_model.classifier[0]
+        self.relu1 = original_model.classifier[1]
+        self.dropout1 = original_model.classifier[2]
+        
+        self.fc2 = original_model.classifier[3]
+        self.relu2 = original_model.classifier[4]
+        self.dropout2 = original_model.classifier[5]
+    
+    def forward(self, x):
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        fc1_output = self.fc1(x)
+        fc1_output = self.relu1(fc1_output)
+        fc1_output = self.dropout1(fc1_output)
+        fc2_output = self.fc2(fc1_output)
+        fc2_output = self.relu2(fc2_output)
+        fc2_output = self.dropout2(fc2_output)
+
+        concatenated_features = torch.cat((fc1_output, fc2_output), dim=1)
+        return concatenated_features
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load Models
-vgg_model = models.vgg16(pretrained=False)
-vgg_model.classifier = nn.Sequential(*list(vgg_model.classifier.children())[:-3])
-# Deteksi apakah ada GPU
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+vgg_model = models.vgg16(pretrained=True)
+#vgg_model.classifier = nn.Sequential(*list(vgg_model.classifier.children())[:-3])
+vgg_model.load_state_dict(torch.load('GEMASTIK_FINAL_VGG16.pth', map_location=device))
+# vgg_model.to(device) #move model to the device (GPU or CPU)
+# vgg_model.eval()
 
-# Muat model di device yang sesuai
-state_dict = torch.load('GEMASTIK_FINAL_VGG16.pth', map_location=device)
-vgg_model.load_state_dict(state_dict, strict=False)
-vgg_model.to(device) #move model to the device (GPU or CPU)
-vgg_model.eval()
+# Initialize the feature extractor
+feature_extractor = VGG16FeatureExtractor(vgg_model)
+feature_extractor.eval()
+feature_extractor.to(device)
 
-pca = joblib.load('pca_model.pkl')
-svm = joblib.load('svm_classifier.pkl')
+pca = joblib.load('GEMASTIK_FINAL_PCA.pkl')
+svm = joblib.load('GEMASTIK_FINAL_SVM.pkl')
 
 # Process Image for ML
 def process_image(picture):
@@ -329,13 +357,14 @@ def process_image(picture):
     return picture
 
 # Feature extraction using VGG16
-def extract_features(picture, model):
-    with torch.no_grad():
-        features = model(picture)
-    return features.cpu().numpy().flatten() # Move to CPU and convert to numpy array
+# def extract_features(picture, model):
+#     with torch.no_grad():
+#         features = model(picture)
+#     return features.cpu().numpy().flatten() # Move to CPU and convert to numpy array
 
 # Apply PCA
 def apply_pca(features, pca):
+    #pca_features = pca.transform([features])
     pca_features = pca.transform([features])
     return pca_features
 
@@ -361,9 +390,11 @@ def classification():
         apply = st.button("Terapkan", type="secondary")
         if apply:
             processed_image = process_image(st.session_state['processed_img'])  # Preprocess image for ML
-            features = extract_features(processed_image, vgg_model)             # Extract features using VGG16
-            pca_features = apply_pca(features, pca)
-            prediction = predict_svm(pca_features, svm)
+            with torch.no_grad():
+                features = feature_extractor(processed_image)
+            #features = extract_features(processed_image, vgg_model)             # Extract features using VGG16
+            pca_features = apply_pca(features.cpu().numpy().flatten(), pca)
+            prediction = predict_svm(pca_features, svm) 
             
             # Mapping numerical prediction to class names
             numerical_to_class = {0: 'glioma', 1: 'meningioma', 2: 'nontumor', 3: 'pituitary'}
